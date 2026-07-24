@@ -11,7 +11,11 @@
       "module": "uvicorn",
       "args": [
         "src.app:app",
-        "--reload"
+        "--reload",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8001"
       ],
       "jinja": true
     }
