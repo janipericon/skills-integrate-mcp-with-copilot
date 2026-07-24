@@ -1,7 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
   const activitiesList = document.getElementById("activities-list");
-  const activitySelect = document.getElementById("activity");
-  const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
   const teacherOnlyNote = document.getElementById("teacher-only-note");
   const userMenuButton = document.getElementById("user-menu-button");
@@ -14,10 +12,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let isTeacherAuthenticated = false;
   let teacherUsername = null;
+  let currentActivities = null;
+  let activeSignupActivity = null;
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+  }
 
   function showMessage(text, type) {
     messageDiv.textContent = text;
-    messageDiv.className = type;
+    messageDiv.className = `message ${type}`;
     messageDiv.classList.remove("hidden");
     setTimeout(() => {
       messageDiv.classList.add("hidden");
@@ -25,28 +38,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function setTeacherUiState() {
-    const submitButton = signupForm.querySelector("button[type='submit']");
-    const formInputs = signupForm.querySelectorAll("input, select");
-
     if (isTeacherAuthenticated) {
       teacherOnlyNote.textContent = `Logged in as ${teacherUsername}. You can register and unregister students.`;
-      formInputs.forEach((input) => {
-        input.disabled = false;
-      });
-      submitButton.disabled = false;
-      submitButton.textContent = "Sign Up";
       loginButton.classList.add("hidden");
       logoutButton.classList.remove("hidden");
     } else {
       teacherOnlyNote.textContent = "Teacher login is required to register or unregister students.";
-      formInputs.forEach((input) => {
-        input.disabled = true;
-      });
-      submitButton.disabled = true;
-      submitButton.textContent = "Teacher Login Required";
+      activeSignupActivity = null;
       loginButton.classList.remove("hidden");
       logoutButton.classList.add("hidden");
     }
+
+    renderActivities();
   }
 
   async function refreshAuthStatus() {
@@ -64,72 +67,134 @@ document.addEventListener("DOMContentLoaded", () => {
     setTeacherUiState();
   }
 
-  // Function to fetch activities from API
-  async function fetchActivities() {
-    try {
-      const response = await fetch("/activities");
-      const activities = await response.json();
+  function renderActivities() {
+    if (currentActivities === null) {
+      return;
+    }
 
-      // Clear loading message
-      activitiesList.innerHTML = "";
-      activitySelect.innerHTML = "<option value=''>-- Select an activity --</option>";
+    activitiesList.innerHTML = "";
 
-      // Populate activities list
-      Object.entries(activities).forEach(([name, details]) => {
-        const activityCard = document.createElement("div");
-        activityCard.className = "activity-card";
+    Object.entries(currentActivities).forEach(([name, details]) => {
+      const activityCard = document.createElement("div");
+      activityCard.className = "activity-card";
 
-        const spotsLeft =
-          details.max_participants - details.participants.length;
+      const spotsLeft = details.max_participants - details.participants.length;
+      const escapedName = escapeHtml(name);
+      const registerFormHTML =
+        activeSignupActivity === name && isTeacherAuthenticated
+          ? `
+            <form class="inline-signup-form" data-activity="${escapedName}">
+              <label>Student Email</label>
+              <input
+                type="email"
+                name="email"
+                required
+                placeholder="student@mergington.edu"
+              />
+              <div class="inline-signup-actions">
+                <button type="submit">Confirm Registration</button>
+                <button type="button" class="secondary-btn register-cancel-btn">Cancel</button>
+              </div>
+            </form>
+          `
+          : "";
 
-        // Only teachers can unregister students.
-        const participantsHTML =
-          details.participants.length > 0
-            ? `<div class="participants-section">
+      const participantsHTML =
+        details.participants.length > 0
+          ? `<div class="participants-section">
               <h5>Participants:</h5>
               <ul class="participants-list">
                 ${details.participants
                   .map(
                     (email) =>
-                      `<li><span class="participant-email">${email}</span>${
+                      `<li><span class="participant-email">${escapeHtml(
+                        email
+                      )}</span>${
                         isTeacherAuthenticated
-                          ? `<button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button>`
+                          ? `<button class="delete-btn" data-activity="${escapedName}" data-email="${escapeHtml(
+                              email
+                            )}" type="button">❌</button>`
                           : ""
                       }</li>`
                   )
                   .join("")}
               </ul>
             </div>`
-            : `<p><em>No participants yet</em></p>`;
+          : `<p><em>No participants yet</em></p>`;
 
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-          <div class="participants-container">
-            ${participantsHTML}
-          </div>
-        `;
+      activityCard.innerHTML = `
+        <h4>${escapedName}</h4>
+        <p>${escapeHtml(details.description)}</p>
+        <p><strong>Schedule:</strong> ${escapeHtml(details.schedule)}</p>
+        <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+        <div class="activity-card-actions">
+          <button
+            type="button"
+            class="register-toggle-btn"
+            data-activity="${escapedName}"
+            ${isTeacherAuthenticated ? "" : "disabled"}
+          >
+            Register Student
+          </button>
+        </div>
+        ${registerFormHTML}
+        <div class="participants-container">
+          ${participantsHTML}
+        </div>
+      `;
 
-        activitiesList.appendChild(activityCard);
+      activitiesList.appendChild(activityCard);
+    });
 
-        // Add option to select dropdown
-        const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        activitySelect.appendChild(option);
-      });
+    if (!activitiesList.innerHTML) {
+      activitiesList.innerHTML = "<p>No activities available.</p>";
+    }
 
-      // Add event listeners to delete buttons
-      document.querySelectorAll(".delete-btn").forEach((button) => {
-        button.addEventListener("click", handleUnregister);
-      });
+    document.querySelectorAll(".delete-btn").forEach((button) => {
+      button.addEventListener("click", handleUnregister);
+    });
+
+    document.querySelectorAll(".register-toggle-btn").forEach((button) => {
+      button.addEventListener("click", handleRegisterToggle);
+    });
+
+    document.querySelectorAll(".register-cancel-btn").forEach((button) => {
+      button.addEventListener("click", handleRegisterCancel);
+    });
+
+    document.querySelectorAll(".inline-signup-form").forEach((form) => {
+      form.addEventListener("submit", handleRegisterSubmit);
+    });
+  }
+
+  // Function to fetch activities from API
+  async function fetchActivities() {
+    try {
+      const response = await fetch("/activities");
+      currentActivities = await response.json();
+      renderActivities();
     } catch (error) {
       activitiesList.innerHTML =
         "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
     }
+  }
+
+  function handleRegisterToggle(event) {
+    if (!isTeacherAuthenticated) {
+      showMessage("Teacher login required", "error");
+      return;
+    }
+
+    const activity = event.target.getAttribute("data-activity");
+    activeSignupActivity =
+      activeSignupActivity === activity ? null : activity;
+    renderActivities();
+  }
+
+  function handleRegisterCancel() {
+    activeSignupActivity = null;
+    renderActivities();
   }
 
   // Handle unregister functionality
@@ -159,13 +224,51 @@ document.addEventListener("DOMContentLoaded", () => {
         showMessage(result.message, "success");
 
         // Refresh activities list to show updated participants
-        fetchActivities();
+        await fetchActivities();
       } else {
         showMessage(result.detail || "An error occurred", "error");
       }
     } catch (error) {
       showMessage("Failed to unregister. Please try again.", "error");
       console.error("Error unregistering:", error);
+    }
+  }
+
+  async function handleRegisterSubmit(event) {
+    event.preventDefault();
+
+    if (!isTeacherAuthenticated) {
+      showMessage("Teacher login required", "error");
+      return;
+    }
+
+    const form = event.target;
+    const activity = form.getAttribute("data-activity");
+    const formData = new FormData(form);
+    const email = String(formData.get("email") || "").trim();
+
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(
+          activity
+        )}/signup?email=${encodeURIComponent(email)}`,
+        {
+          method: "POST",
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showMessage(result.message, "success");
+        activeSignupActivity = null;
+        await fetchActivities();
+      } else {
+        showMessage(result.detail || "An error occurred", "error");
+      }
+    } catch (error) {
+      showMessage("Failed to sign up. Please try again.", "error");
+      console.error("Error signing up:", error);
     }
   }
 
@@ -220,7 +323,6 @@ document.addEventListener("DOMContentLoaded", () => {
       loginForm.reset();
       loginModal.classList.add("hidden");
       await refreshAuthStatus();
-      await fetchActivities();
       showMessage(`Logged in as ${result.username}`, "success");
     } catch (error) {
       showMessage("Login failed. Please try again.", "error");
@@ -236,50 +338,10 @@ document.addEventListener("DOMContentLoaded", () => {
       isTeacherAuthenticated = false;
       teacherUsername = null;
       setTeacherUiState();
-      await fetchActivities();
       showMessage("Logged out", "success");
     } catch (error) {
       showMessage("Failed to logout. Please try again.", "error");
       console.error("Error logging out:", error);
-    }
-  });
-
-  // Handle form submission
-  signupForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    if (!isTeacherAuthenticated) {
-      showMessage("Teacher login required", "error");
-      return;
-    }
-
-    const email = document.getElementById("email").value;
-    const activity = document.getElementById("activity").value;
-
-    try {
-      const response = await fetch(
-        `/activities/${encodeURIComponent(
-          activity
-        )}/signup?email=${encodeURIComponent(email)}`,
-        {
-          method: "POST",
-        }
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
-        showMessage(result.message, "success");
-        signupForm.reset();
-
-        // Refresh activities list to show updated participants
-        fetchActivities();
-      } else {
-        showMessage(result.detail || "An error occurred", "error");
-      }
-    } catch (error) {
-      showMessage("Failed to sign up. Please try again.", "error");
-      console.error("Error signing up:", error);
     }
   });
 
