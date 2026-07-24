@@ -73,8 +73,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     activitiesList.innerHTML = "";
+    const activityEntries = Object.entries(currentActivities);
 
-    Object.entries(currentActivities).forEach(([name, details]) => {
+    if (activityEntries.length === 0) {
+      activitiesList.innerHTML = "<p>No activities available.</p>";
+      return;
+    }
+
+    activityEntries.forEach(([name, details]) => {
       const activityCard = document.createElement("div");
       activityCard.className = "activity-card";
 
@@ -145,10 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       activitiesList.appendChild(activityCard);
     });
-
-    if (!activitiesList.innerHTML) {
-      activitiesList.innerHTML = "<p>No activities available.</p>";
-    }
 
     document.querySelectorAll(".delete-btn").forEach((button) => {
       button.addEventListener("click", handleUnregister);
@@ -246,6 +248,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const activity = form.getAttribute("data-activity");
     const formData = new FormData(form);
     const email = String(formData.get("email") || "").trim();
+
+    if (!email) {
+      showMessage("Student email is required", "error");
+      return;
+    }
 
     try {
       const response = await fetch(
