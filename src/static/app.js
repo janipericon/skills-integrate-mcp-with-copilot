@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeSignupActivity = null;
 
   function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, (character) => {
+    return String(value).replace(/[&<>"']/g, (char) => {
       const replacements = {
         "&": "&amp;",
         "<": "&lt;",
@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
         '"': "&quot;",
         "'": "&#39;",
       };
-      return replacements[character];
+      return replacements[char];
     });
   }
 
@@ -86,10 +86,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const spotsLeft = details.max_participants - details.participants.length;
       const escapedName = escapeHtml(name);
+      const activityKey = encodeURIComponent(name);
       const registerFormHTML =
-        activeSignupActivity === name && isTeacherAuthenticated
+        activeSignupActivity === activityKey && isTeacherAuthenticated
           ? `
-            <form class="inline-signup-form" data-activity="${escapedName}">
+            <form class="inline-signup-form" data-activity-key="${activityKey}">
               <label>Student Email</label>
               <input
                 type="email"
@@ -117,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         email
                       )}</span>${
                         isTeacherAuthenticated
-                          ? `<button class="delete-btn" data-activity="${escapedName}" data-email="${escapeHtml(
+                          ? `<button class="delete-btn" data-activity-key="${activityKey}" data-email-key="${encodeURIComponent(
                               email
                             )}" type="button">❌</button>`
                           : ""
@@ -137,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <button
             type="button"
             class="register-toggle-btn"
-            data-activity="${escapedName}"
+            data-activity-key="${activityKey}"
             ${isTeacherAuthenticated ? "" : "disabled"}
           >
             Register Student
@@ -188,7 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const activity = event.target.getAttribute("data-activity");
+    const activity = event.target.getAttribute("data-activity-key");
     activeSignupActivity =
       activeSignupActivity === activity ? null : activity;
     renderActivities();
@@ -207,18 +208,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const button = event.target;
-    const activity = button.getAttribute("data-activity");
-    const email = button.getAttribute("data-email");
+    const activity = button.getAttribute("data-activity-key");
+    const email = button.getAttribute("data-email-key");
 
     try {
-      const response = await fetch(
-        `/activities/${encodeURIComponent(
-          activity
-        )}/unregister?email=${encodeURIComponent(email)}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const response = await fetch(`/activities/${activity}/unregister?email=${email}`, {
+        method: "DELETE",
+      });
 
       const result = await response.json();
 
@@ -245,9 +241,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const form = event.target;
-    const activity = form.getAttribute("data-activity");
+    const activity = form.getAttribute("data-activity-key");
     const formData = new FormData(form);
-    const email = String(formData.get("email") || "").trim();
+    const email = (formData.get("email") || "").trim();
 
     if (!email) {
       showMessage("Student email is required", "error");
@@ -256,9 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const response = await fetch(
-        `/activities/${encodeURIComponent(
-          activity
-        )}/signup?email=${encodeURIComponent(email)}`,
+        `/activities/${activity}/signup?email=${encodeURIComponent(email)}`,
         {
           method: "POST",
         }
