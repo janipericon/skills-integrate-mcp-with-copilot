@@ -16,13 +16,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeSignupActivity = null;
 
   function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, (char) => {
+    return String(value).replace(/[&<>"'/]/g, (char) => {
       const replacements = {
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
         "'": "&#39;",
+        "/": "&#x2F;",
       };
       return replacements[char];
     });
@@ -87,10 +88,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const spotsLeft = details.max_participants - details.participants.length;
       const escapedName = escapeHtml(name);
       const activityKey = encodeURIComponent(name);
+      const escapedActivityKey = escapeHtml(activityKey);
       const registerFormHTML =
         activeSignupActivity === activityKey && isTeacherAuthenticated
           ? `
-            <form class="inline-signup-form" data-activity-key="${activityKey}">
+            <form class="inline-signup-form" data-activity-key="${escapedActivityKey}">
               <label>Student Email</label>
               <input
                 type="email"
@@ -118,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         email
                       )}</span>${
                         isTeacherAuthenticated
-                          ? `<button class="delete-btn" data-activity-key="${activityKey}" data-email="${escapeHtml(
+                          ? `<button class="delete-btn" data-activity-key="${escapedActivityKey}" data-email="${escapeHtml(
                               email
                             )}" type="button">❌</button>`
                           : ""
@@ -138,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <button
             type="button"
             class="register-toggle-btn"
-            data-activity-key="${activityKey}"
+            data-activity-key="${escapedActivityKey}"
             ${isTeacherAuthenticated ? "" : "disabled"}
           >
             Register Student
