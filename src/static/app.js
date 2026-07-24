@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         email
                       )}</span>${
                         isTeacherAuthenticated
-                          ? `<button class="delete-btn" data-activity-key="${activityKey}" data-email-key="${encodeURIComponent(
+                          ? `<button class="delete-btn" data-activity-key="${activityKey}" data-email="${escapeHtml(
                               email
                             )}" type="button">❌</button>`
                           : ""
@@ -189,9 +189,9 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const activity = event.target.getAttribute("data-activity-key");
+    const activityKey = event.target.getAttribute("data-activity-key");
     activeSignupActivity =
-      activeSignupActivity === activity ? null : activity;
+      activeSignupActivity === activityKey ? null : activityKey;
     renderActivities();
   }
 
@@ -208,13 +208,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const button = event.target;
-    const activity = button.getAttribute("data-activity-key");
-    const email = button.getAttribute("data-email-key");
+    const activityKey = button.getAttribute("data-activity-key");
+    const email = button.getAttribute("data-email");
 
     try {
-      const response = await fetch(`/activities/${activity}/unregister?email=${email}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/activities/${activityKey}/unregister?email=${encodeURIComponent(email)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       const result = await response.json();
 
@@ -241,7 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const form = event.target;
-    const activity = form.getAttribute("data-activity-key");
+    const activityKey = form.getAttribute("data-activity-key");
     const formData = new FormData(form);
     const email = (formData.get("email") || "").trim();
 
@@ -252,7 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const response = await fetch(
-        `/activities/${activity}/signup?email=${encodeURIComponent(email)}`,
+        `/activities/${activityKey}/signup?email=${encodeURIComponent(email)}`,
         {
           method: "POST",
         }
