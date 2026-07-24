@@ -24,6 +24,7 @@ app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
 TEACHERS_FILE_PATH = current_dir / "teachers.json"
+ACTIVITIES_FILE_PATH = current_dir / "activities.json"
 SESSION_COOKIE_NAME = "teacher_session"
 teacher_sessions = {}
 
@@ -43,11 +44,27 @@ def _load_teachers() -> dict[str, str]:
             data = json.load(file)
     except FileNotFoundError as exc:
         raise RuntimeError("teachers.json file is missing") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("teachers.json contains invalid JSON") from exc
 
     teachers = data.get("teachers", {})
     if not isinstance(teachers, dict):
         raise RuntimeError("Invalid teachers.json format: 'teachers' must be an object")
     return teachers
+
+
+def _load_activities() -> dict:
+    try:
+        with open(ACTIVITIES_FILE_PATH, "r", encoding="utf-8") as file:
+            data = json.load(file)
+    except FileNotFoundError as exc:
+        raise RuntimeError("activities.json file is missing") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("activities.json contains invalid JSON") from exc
+
+    if not isinstance(data, dict):
+        raise RuntimeError("Invalid activities.json format: root must be an object")
+    return data
 
 
 def _get_authenticated_teacher(request: Request) -> str | None:
@@ -64,68 +81,7 @@ def _require_teacher(request: Request) -> str:
     return username
 
 # In-memory activity database
-activities = {
-    "Chess Club": {
-        "description": "Learn strategies and compete in chess tournaments",
-        "schedule": "Fridays, 3:30 PM - 5:00 PM",
-        "max_participants": 12,
-        "participants": ["michael@mergington.edu", "daniel@mergington.edu"]
-    },
-    "Programming Class": {
-        "description": "Learn programming fundamentals and build software projects",
-        "schedule": "Tuesdays and Thursdays, 3:30 PM - 4:30 PM",
-        "max_participants": 20,
-        "participants": ["emma@mergington.edu", "sophia@mergington.edu"]
-    },
-    "Gym Class": {
-        "description": "Physical education and sports activities",
-        "schedule": "Mondays, Wednesdays, Fridays, 2:00 PM - 3:00 PM",
-        "max_participants": 30,
-        "participants": ["john@mergington.edu", "olivia@mergington.edu"]
-    },
-    "Soccer Team": {
-        "description": "Join the school soccer team and compete in matches",
-        "schedule": "Tuesdays and Thursdays, 4:00 PM - 5:30 PM",
-        "max_participants": 22,
-        "participants": ["liam@mergington.edu", "noah@mergington.edu"]
-    },
-    "Basketball Team": {
-        "description": "Practice and play basketball with the school team",
-        "schedule": "Wednesdays and Fridays, 3:30 PM - 5:00 PM",
-        "max_participants": 15,
-        "participants": ["ava@mergington.edu", "mia@mergington.edu"]
-    },
-    "Art Club": {
-        "description": "Explore your creativity through painting and drawing",
-        "schedule": "Thursdays, 3:30 PM - 5:00 PM",
-        "max_participants": 15,
-        "participants": ["amelia@mergington.edu", "harper@mergington.edu"]
-    },
-    "Drama Club": {
-        "description": "Act, direct, and produce plays and performances",
-        "schedule": "Mondays and Wednesdays, 4:00 PM - 5:30 PM",
-        "max_participants": 20,
-        "participants": ["ella@mergington.edu", "scarlett@mergington.edu"]
-    },
-    "Math Club": {
-        "description": "Solve challenging problems and participate in math competitions",
-        "schedule": "Tuesdays, 3:30 PM - 4:30 PM",
-        "max_participants": 10,
-        "participants": ["james@mergington.edu", "benjamin@mergington.edu"]
-    },
-    "Debate Team": {
-        "description": "Develop public speaking and argumentation skills",
-        "schedule": "Fridays, 4:00 PM - 5:30 PM",
-        "max_participants": 12,
-        "participants": ["charlotte@mergington.edu", "henry@mergington.edu"]
-    },
-    "Manga Maniacs": {
-        "description": "Explore the fantastic stories of the most interesting characters from Japanese Manga (Graphic novels).",
-        "schedule": "Tuesday at 7PM",
-        "max_participants": 15,
-        "participants": []
-    }
-}
+activities = _load_activities()
 
 
 @app.get("/")
